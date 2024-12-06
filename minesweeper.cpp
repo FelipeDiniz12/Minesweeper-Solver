@@ -357,8 +357,8 @@ bool warpAndClick(std::vector<std::vector<char>>& board, int x, int y, ACTION ac
     if (delay) sleep(1);
     mouseClick(action, mask);
     if (delay) sleep(1);
-    // TODO: We only need to update the board when revealing tiles, right?
-    updateBoard(board);
+    // Only needs to update board if the action is REVEAL_TILE
+    if (action == REVEAL_TILE) updateBoard(board);
     return true;
 }
 
