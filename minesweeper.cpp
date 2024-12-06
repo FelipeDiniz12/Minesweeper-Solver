@@ -207,9 +207,11 @@ Vec4b pixelAverage(Mat img, int x, int y, int offsetDepth = 3) {
 std::vector<std::vector<int>> surroundingTiles(std::vector<std::vector<char>>& board, int x, int y, std::vector<char> searchList = {'E', 'M'}) {
     std::vector<std::vector<int>> result = {};
     // Iterate through the surroundings from x,y position
+    short int board_size_x = board.size();
+    short int board_size_y = board[0].size();
     for (int i = 0; i < 9; i++) {
-        int pos_x = x-1+i/3 < 0 ? 0 : x-1+i/3 >= board.size() ? board.size()-1 : x-1+i/3;
-        int pos_y = y-1+i%3 < 0 ? 0 : y-1+i%3 >= board[0].size() ? board[0].size()-1 : y-1+i%3;
+        short int pos_x = x-1+i/3 < 0 ? 0 : x-1+i/3 >= board_size_x ? board_size_x-1 : x-1+i/3;
+        short int pos_y = y-1+i%3 < 0 ? 0 : y-1+i%3 >= board_size_y ? board_size_y-1 : y-1+i%3;
         if (std::find(searchList.begin(), searchList.end(), board.at(pos_x).at(pos_y)) != searchList.end()) {
             std::vector<int> aux = {pos_x, pos_y};
             if (std::find(result.begin(), result.end(), aux) == result.end()) result.push_back({pos_x, pos_y});
@@ -243,13 +245,15 @@ bool updateBoard(std::vector<std::vector<char>>& board) {
     // This corrector is needed for handling pixel issues when iterating through the rows.
     // TODO: very likely the correction is needed on Y-axis
     int corrector_x = 0;
-    for (int offset_row=318; offset_row < 530+(board.size()-9)*25; offset_row += 25) {
+    int offset_row_max = 530+(board.size()-9)*25;
+    int offset_max = 260+(board[0].size()-9)*25;
+    for (int offset_row=318; offset_row < offset_row_max; offset_row += 25) {
         j = 0;
         int tile_counter = 0;
         corrector_x = 0;
         Vec4b real_color = {0, 0, 0, 0};
         int counter = 0;
-        for (int offset=34; offset<260+(board[0].size()-9)*25; offset += 1) {
+        for (int offset=34; offset < offset_max; offset += 1) {
             if (board.at(i).at(j) != 'E' || board.at(i).at(j) == '0' || board.at(i).at(j) == 'M' || board.at(i).at(j) == '9') {
                 std::cout << "Position kept as " << board.at(i).at(j) << " at " << i+1 << " " << j+1 << std::endl;
                 j += 1;
@@ -473,7 +477,7 @@ bool pivotBoard(std::vector<std::vector<char>>& board, int x, int y, int pivot_x
             std::cout << "Pivot expected: " << pivot_expected_bombs << std::endl;
             std::cout << "Original expected: " << expected_bombs << std::endl;
             int difference = pivot_expected_bombs - expected_bombs;
-            if (difference == pivot_not_intersection.size()) {
+            if (difference == (int)pivot_not_intersection.size()) {
                 std::cout << "Pivoting taking place!" << std::endl;
                 std::cout << "Since this invalidates the original tile, then marking the other pivot tiles as bombs!" << std::endl;
                 for (auto &i : pivot_not_intersection) {
@@ -541,7 +545,7 @@ bool pivotBoard(std::vector<std::vector<char>>& board, int x, int y, int pivot_x
         // If the difference of expected bombs from original tile and pivot is equal to the size of the list 
         // with non-intersected tiles from original one, and this list isn't empty, then all these tiles should
         // be marked as bombs.
-        if (expected_bombs - pivot_expected_bombs == results_not_intersection.size()) {
+        if (expected_bombs - pivot_expected_bombs == (int)results_not_intersection.size()) {
             if (results_not_intersection.size() == 0) return false;
             std::cout << "Pivoting taking place!" << std::endl;
             std::cout << "The NOT intersection size is the same amount of expected bombs difference, marking as bomb!" << std::endl;
@@ -594,7 +598,7 @@ bool markBombs(std::vector<std::vector<char>>& board, int x, int y, STRATEGY str
             std::cout << "Revealing tile at " << x+1 << " " << y+1 << std::endl;
             warpAndClick(board, 46+25*(y), 318+25*(x), REVEAL_TILE);
             return true;
-        } else if (bomb_counter + results.size() == bombs) {
+        } else if (bomb_counter + (int)results.size() == bombs) {
             std::cout << "Bomb counter summed with results size is " << bombs << " in position " << x+1 << " " << y+1 << std::endl;
             for (auto i : results) {
                 std::cout << "Marking bomb at " << i[0]+1 << " " << i[1]+1 << std::endl;
@@ -618,7 +622,7 @@ bool markBombs(std::vector<std::vector<char>>& board, int x, int y, STRATEGY str
             if (pivotBoard(board, x, y, pivot_x, pivot_y, surroundings, results, bomb_counter)) return true;
         } 
         
-        if (y < board[0].size()-1) {
+        if (y < (int)board[0].size()-1) {
             // right
             std::cout << "Pivoting to the right" << std::endl;
             pivot_x = x;
@@ -634,7 +638,7 @@ bool markBombs(std::vector<std::vector<char>>& board, int x, int y, STRATEGY str
             if (pivotBoard(board, x, y, pivot_x, pivot_y, surroundings, results, bomb_counter)) return true;
         } 
 
-        if(x < board.size()-1) {
+        if(x < (int)board.size()-1) {
             // down
             std::cout << "Pivoting down" << std::endl;
             pivot_x = x+1;
@@ -846,7 +850,7 @@ int main (int argc, const char * argv[]) {
                     // Do not check tiles whieh are inside the visited-array
                     std::vector<int> aux = {i, j};
                     if (std::find(visited.begin(), visited.end(), aux) == visited.end() || 
-                        board_stalled && std::find(pivots_visited.begin(), pivots_visited.end(), aux) == pivots_visited.end()) {
+                        (board_stalled && std::find(pivots_visited.begin(), pivots_visited.end(), aux) == pivots_visited.end())) {
                         // Let's try to mark some bombs, or free tiles
                         STRATEGY strategy = board_stalled ? PIVOT : SIMPLE;
                         if (markBombs(*board, i, j, strategy)) {
