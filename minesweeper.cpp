@@ -224,8 +224,6 @@ std::vector<std::vector<int>> surroundingTiles(std::vector<std::vector<char>>& b
  * @return returns true when the function finishes
  */ 
 bool updateBoard(std::vector<std::vector<char>>& board) {
-    Display *display;
-    Window root;
     int i = 0;
     int j = 0;
     int Width = 0;
@@ -575,8 +573,6 @@ bool markBombs(std::vector<std::vector<char>>& board, int x, int y, STRATEGY str
     // Converting the amount of bombs from char to int (Since this comes from ASCII table, just
     // subtracting it by 48)
     int bombs = board.at(x).at(y)-48;
-    Display* display;
-    Window root;
     // bomb_counter will track how much bombs exist in the tile's neighborhood, and the possible locations
     // will be stored in results vector.
     int bomb_counter = 0;
