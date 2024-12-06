@@ -485,10 +485,6 @@ bool pivotBoard(std::vector<std::vector<char>>& board, int x, int y, int pivot_x
             }
         } 
 
-        // TODO: are these sortings really needed?
-        std::sort(results.begin(), results.end());
-        std::sort(results_intersection.begin(), results_intersection.end());
-        
         
         // If the amount of expected bombs from pivot and original are the same, so as the pivot surroundings
         // and the intersection between pivot and original tile, it means all bombs reside in the intersection
