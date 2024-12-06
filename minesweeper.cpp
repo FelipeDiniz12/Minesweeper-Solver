@@ -678,7 +678,7 @@ int main (int argc, const char * argv[]) {
     DIFFICULTY difficulty;
     int board_size_x = 9;
     int board_size_y = 9;
-    if (argc > 0) {
+    if (argc > 1) {
         switch (atoi(argv[1])) {
             case 0:
                 difficulty = BEGINNER;
