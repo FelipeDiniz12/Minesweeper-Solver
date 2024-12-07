@@ -25,7 +25,7 @@ LDFLAGS = -g $(addprefix -L, $(LIB_DIR)) \
 
 CXXFLAGS +=  $(addprefix -I, $(INC_DIR))
 
-all: $(TARGET) run
+all: $(TARGET)
 
 $(TARGET): $(OBJS)
 	$(CXX) $(CXXFLAGS) -o $(TARGET) $(OBJS) $(LDFLAGS)
