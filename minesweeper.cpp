@@ -114,7 +114,7 @@ void mouseClick(int button, int mask) {
     event.type = ButtonPress;
     event.xbutton.button = button;
     event.xbutton.same_screen = True;
-    event.xbutton.time = 100;
+    event.xbutton.time = 10;
 
     XQueryPointer(display, RootWindow(display, DefaultScreen(display)), &event.xbutton.root, &event.xbutton.window, &event.xbutton.x_root, &event.xbutton.y_root, &event.xbutton.x, &event.xbutton.y, &event.xbutton.state);
 
@@ -131,7 +131,7 @@ void mouseClick(int button, int mask) {
 
     XFlush(display);
 
-    usleep(100000);
+    usleep(80000);
 
     event.type = ButtonRelease;
     event.xbutton.state = mask;
