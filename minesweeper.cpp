@@ -2,10 +2,11 @@
  * This is a Minesweeper Solver C++ code. Much of its numbers and metrics used are
  * purely empiric. So, it might need some tweaks in case you want to try it yourself.
  * Besides it, other two libraries/frameworks were used in this project:
- * * OpenCV
- * * X11
- */ 
+ * - OpenCV
+ * - X11
+ */
 
+#include <X11/X.h>
 #include <vector>
 #include <opencv2/opencv.hpp>
 #include <iostream>
@@ -50,18 +51,113 @@ enum DIFFICULTY {
     INTERMEDIATE=1,
     EXPERT=2
 };
+// Message Level
+enum MESSAGE_LEVEL : char
+{
+    BASIC=0,
+    DEBUG=1,
+    DEEP_DEBUG=2
+};
+
+// Globals
+MESSAGE_LEVEL runMessageLevel = MESSAGE_LEVEL::DEEP_DEBUG;
+
+/**
+ * Prints a given message to STDERR
+ * @param msg Message to be printed
+ */
+void printError(const std::string& msg)
+{
+    std::cerr << "[ERROR]: " << msg << std::endl;
+}
+
+/**
+ * This function prints a given message based on the current message level
+ * and the message level set.
+ * @param msg Message to be printed
+ * @param messageLevel The message level of what's to be printed
+ * @param skipLine If true, then adds a new line at the end of the message
+ */
+void printMessage(const std::string& msg,
+                  const MESSAGE_LEVEL& messageLevel,
+                  const bool& skipLine = true)
+{
+    // Only prints if the message level is equal or bigger than
+    // current run's message level
+    if (runMessageLevel >= messageLevel)
+    {
+        switch (messageLevel)
+        {
+            case MESSAGE_LEVEL::BASIC:
+                std::cout << "[BASIC MESSAGE]: ";
+                break;
+            case MESSAGE_LEVEL::DEBUG:
+                std::cout << "[DEBUG MESSAGE]: ";
+                break;
+            case MESSAGE_LEVEL::DEEP_DEBUG:
+                std::cout << "[DEEP_DEBUG MESSAGE]: ";
+                break;
+        };
+
+        std::cout << msg;
+        if (skipLine)
+        {
+            std::cout << std::endl;
+        }
+    }
+}
+
+/**
+ * Prints a message with "Basic" severity
+ * @param msg Message to be printed
+ * @param skipLine If true, then adds a new line at the end of the message
+ */
+void printBasicMessage(const std::string& msg,
+                       const bool& skipLine = true)
+{
+    printMessage(msg, MESSAGE_LEVEL::BASIC, skipLine);
+}
+
+/**
+ * Prints a message with "Debug" severity
+ * @param msg Message to be printed
+ * @param skipLine If true, then adds a new line at the end of the message
+ */
+void printDebugMessage(const std::string& msg,
+                       const bool& skipLine = true)
+{
+    printMessage(msg, MESSAGE_LEVEL::DEBUG, skipLine);
+}
+
+/**
+ * Prints a message with "Deep Debug" severity
+ * @param msg Message to be printed
+ * @param skipLine If true, then adds a new line at the end of the message
+ */
+void printDeepDebugMessage(const std::string& msg,
+                           const bool& skipLine = true)
+{
+    printMessage(msg, MESSAGE_LEVEL::DEEP_DEBUG, skipLine);
+}
 
 /**
  * This function prints the current board to the screen
  * @param board Board to be used for printing
  */
-void printBoard(std::vector<std::vector<char>>& board) {
-    for (const auto& i : board) {
-        for (const auto& j : i) {
-            std::cout << j << " ";
+void printBoard(const std::vector<std::vector<char>>& board)
+{
+    std::string toPrint = "Printing Board:\n";
+    for (const auto& i : board)
+    {
+        toPrint += " \t\t\t\t";
+        for (const auto& j : i)
+        {
+            toPrint += j;
+            toPrint += " ";
         }
-        std::cout << std::endl;
+        toPrint += "\n";
     }
+    printBasicMessage(toPrint);
 }
 
 /**
@@ -71,7 +167,10 @@ void printBoard(std::vector<std::vector<char>>& board) {
  * @param Height height from the image to be stored
  * @param BitsPerPixel bits per pixel to be used
  */
-void ImageFromDisplay(std::vector<uint8_t>& Pixels, int& Width, int& Height, int& BitsPerPixel)
+void ImageFromDisplay(std::vector<uint8_t>& Pixels,
+                      int& Width,
+                      int& Height,
+                      int& BitsPerPixel)
 {
     // Setting is as nullptr means that the env var DISPLAY value will be used (likely to be ":0")
     Display* display = XOpenDisplay(nullptr);
@@ -97,15 +196,17 @@ void ImageFromDisplay(std::vector<uint8_t>& Pixels, int& Width, int& Height, int
  * This function mocks a mouse click given a button and a mask.
  * @param button Which mouse button to be used
  * @param mask Which mask to be used to avoid unintended clicks/commands
- */ 
-void mouseClick(const int button, const int mask) {
+ */
+void mouseClick(const int& button,
+                const int& mask)
+{
     Display *display = XOpenDisplay(NULL);
 
     XEvent event;
 
     if(display == NULL)
     {
-        fprintf(stderr, "Error while opening Display !!!\n");
+        printError("Error while opening Display!");
         exit(EXIT_FAILURE);
     }
 
@@ -127,7 +228,10 @@ void mouseClick(const int button, const int mask) {
         XQueryPointer(display, event.xbutton.window, &event.xbutton.root, &event.xbutton.subwindow, &event.xbutton.x_root, &event.xbutton.y_root, &event.xbutton.x, &event.xbutton.y, &event.xbutton.state);
     }
 
-    if(XSendEvent(display, PointerWindow, True, mask, &event) == 0) fprintf(stderr, "Error\n");
+    if(XSendEvent(display, PointerWindow, True, mask, &event) == 0)
+    {
+        printError("Error while sending press event!");
+    }
 
     XFlush(display);
 
@@ -136,7 +240,10 @@ void mouseClick(const int button, const int mask) {
     event.type = ButtonRelease;
     event.xbutton.state = mask;
 
-    if(XSendEvent(display, PointerWindow, True, mask, &event) == 0) fprintf(stderr, "Error\n");
+    if(XSendEvent(display, PointerWindow, True, mask, &event) == 0)
+    {
+        printError("Error while sending release event!");
+    }
 
     XFlush(display);
 
@@ -147,12 +254,13 @@ void mouseClick(const int button, const int mask) {
  * This function returns a color based on a Vec4b provided. The numbers for R, G, B thresholds are empiric.
  * @param color Vec4b containing RGBA information to be processed
  * @return returns a COLOR enum with the color identified by this function. If no color is found, then it returns UNKNOWN
- */ 
-COLOR colorIdentifier (const Vec4b& color) {
+ */
+COLOR colorIdentifier (const Vec4b& color)
+{
     int R = color.val[2];
     int G = color.val[1];
     int B = color.val[0];
-    
+
     // White world
     if (R > 195 && G > 195 && B > 195) return WHITE;
     // Red world
@@ -168,7 +276,7 @@ COLOR colorIdentifier (const Vec4b& color) {
     if (R < 150 && G < 150 && B < 150 && R==G && R==B && G==B) return LIGHT_GRAY;
     else if (R > 150 && G > 150 && B > 150 && R==G && R==B && G==B) return GRAY;
     else if (R < 50 && G < 50 && B < 50) return BLACK;
-    
+
     return UNKNOWN;
 }
 
@@ -180,8 +288,12 @@ COLOR colorIdentifier (const Vec4b& color) {
  * @param offsetDepth This is how depth the average will be calculated. By default is 3. Which means, the average
  * will take into account the pixels at maximum 3 pixels of distance on any direction.
  * @return returns a Vec4b vector containing the average RGBA.
- */ 
-Vec4b pixelAverage(const Mat& img, const int& x, const int& y, const int& offsetDepth = 3) {
+ */
+Vec4b pixelAverage(const Mat& img,
+                   const int& x,
+                   const int& y,
+                   const int& offsetDepth = 3)
+{
     Vec4b average_vec = {0, 0, 0, 0};
     float denominator = 1/(std::pow(2*offsetDepth+1, 2));
     for (int j = -offsetDepth; j < offsetDepth+1; j++) {
@@ -203,8 +315,8 @@ Vec4b pixelAverage(const Mat& img, const int& x, const int& y, const int& offset
  * @param y Y position for search the surrounding tiles
  * @param searchList list of chars to be used as "valid tiles". The list is "E" and "M" by default.
  * @return returns the vector containing the surrounding tiles that matches with searchList contents
- */ 
-std::vector<std::vector<int>> surroundingTiles(const std::vector<std::vector<char>>& board, 
+ */
+std::vector<std::vector<int>> surroundingTiles(const std::vector<std::vector<char>>& board,
                                                const int& x,
                                                const int& y,
                                                const std::vector<char>& searchList = {'E', 'M'})
@@ -228,7 +340,7 @@ std::vector<std::vector<int>> surroundingTiles(const std::vector<std::vector<cha
  * This function updates the board and at the end, prints it out.
  * @param board Board to be updated
  * @return returns true when the function finishes
- */ 
+ */
 bool updateBoard(std::vector<std::vector<char>>& board) {
     int i = 0;
     int j = 0;
@@ -251,15 +363,23 @@ bool updateBoard(std::vector<std::vector<char>>& board) {
     int corrector_x = 0;
     int offset_row_max = 530+(board.size()-9)*25;
     int offset_max = 260+(board[0].size()-9)*25;
-    for (int offset_row=318; offset_row < offset_row_max; offset_row += 25) {
+    for (int offset_row=318; offset_row < offset_row_max; offset_row += 25)
+    {
         j = 0;
         int tile_counter = 0;
         corrector_x = 0;
         Vec4b real_color = {0, 0, 0, 0};
         int counter = 0;
         for (int offset=34; offset < offset_max; offset += 1) {
-            if (board.at(i).at(j) != 'E' || board.at(i).at(j) == '0' || board.at(i).at(j) == 'M' || board.at(i).at(j) == '9') {
-                std::cout << "Position kept as " << board.at(i).at(j) << " at " << i+1 << " " << j+1 << std::endl;
+            if (board.at(i).at(j) != 'E' || board.at(i).at(j) == '0' || board.at(i).at(j) == 'M' || board.at(i).at(j) == '9')
+            {
+                std::string toPrint = "Position kept as ";
+                toPrint += board.at(i).at(j);
+                toPrint += " at ";
+                toPrint += std::to_string(i+1);
+                toPrint += " ";
+                toPrint += std::to_string(j+1);
+                printDebugMessage(toPrint);
                 j += 1;
                 offset = 34+25*j;
                 tile_counter = 0;
@@ -273,18 +393,18 @@ bool updateBoard(std::vector<std::vector<char>>& board) {
             int y = offset_row;
 
             Vec4b current_color = img.at<Vec4b>(y,x);
-            
+
             if (tile_counter == 25 || ((260+(board[0].size()-9)*25)) - offset <= 1) {
                 tile_counter = 0;
                 COLOR color_verdict;
                 if (counter > 0) {
                     color_verdict = colorIdentifier(real_color);
-                    printf("NEW Position: %i %i at x:%i y:%i : %i, %i, %i, %i, VERDICT: %i\n", i+1, j+1, x, y, real_color.val[3],real_color.val[2],real_color.val[1], real_color.val[0], color_verdict);
+                    printDebugMessage("NEW Position: " + std::to_string(i+1) + " " + std::to_string(j+1) + " at x:" + std::to_string(x) + " y:" + std::to_string(y) + " : " + std::to_string(real_color.val[3]) + ", " + std::to_string(real_color.val[2]) + ", " + std::to_string(real_color.val[1]) + ", " + std::to_string(real_color.val[0]) + ", VERDICT: " + std::to_string(color_verdict));
                 } else {
                     color_verdict = LIGHT_GRAY;
-                    printf("NEW Position: %i %i at x:%i y:%i :FORCED LIGHT GRAY, VERDICT: %i\n", i+1, j+1, x, y, color_verdict);
+                    printDebugMessage("NEW Position: " + std::to_string(i+1) + " " + std::to_string(j+1) + " at x:" + std::to_string(x) + " y:" + std::to_string(y) + " : FORCED LIGHT GRAY, VERDICT: " + std::to_string(color_verdict));
                 }
-                
+
                 real_color = {0, 0, 0, 0};
                 counter = 0;
                 if (color_verdict) {
@@ -292,7 +412,6 @@ bool updateBoard(std::vector<std::vector<char>>& board) {
                 } else {
                     // Need to know if tile was cliked, or not... The distinguishment will be done based on
                     // the information that an unclicked-tile has a white pixel range on its border.
-                    
                     // Begin at the tile's border
                     int old_x = x;
                     x = 34+25*j + corrector_x;
@@ -300,7 +419,7 @@ bool updateBoard(std::vector<std::vector<char>>& board) {
                         // Redo the average routine and color identification
                         Vec4b color_intermediate = pixelAverage(img, x, y, 0);
                         color_verdict = colorIdentifier(color_intermediate);
-                        printf("INTERMEDIATE Position: %i %i at x:%i y:%i : %i, %i, %i, %i, VERDICT: %i\n", i+1, j+1, x, y, color_intermediate.val[3],color_intermediate.val[2],color_intermediate.val[1], color_intermediate.val[0], color_verdict);
+                        printDebugMessage("INTERMEDIATE Position: " + std::to_string(i+1) + " " + std::to_string(j+1) + " at x:" + std::to_string(x) + " y:" + std::to_string(y) + " : " + std::to_string(color_intermediate.val[3]) + ", " + std::to_string(color_intermediate.val[2]) + ", " + std::to_string(color_intermediate.val[1]) + ", " + std::to_string(color_intermediate.val[0]) + ", VERDICT: " + std::to_string(color_verdict));
 
                         if (color_verdict == WHITE) {
                             board.at(i).at(j) = 'E';
@@ -331,10 +450,9 @@ bool updateBoard(std::vector<std::vector<char>>& board) {
         }
         i++;
     }
-    
+
     // Prints the board at the very end.
     printBoard(board);
-    std::cout << std::endl << std::endl ;
     return true;
 }
 
@@ -407,43 +525,42 @@ bool pivotBoard(std::vector<std::vector<char>>& board,
     int bombs = board.at(x).at(y)-48;
     char pivot = board.at(pivot_x).at(pivot_y);
     if (pivot != 'E' && pivot != '0' && pivot != 'M') {
-        std::cout << "Valid pivoting at " << x+1 << " " << y+1 << std::endl;
-        std::cout << "Pivot position is: " << pivot_x+1 << " " << pivot_y+1 << std::endl;
+        printDeepDebugMessage("Valid pivoting at " + std::to_string(x+1) + " " + std::to_string(y+1));
+        printDeepDebugMessage("Pivot position is: " + std::to_string(pivot_x+1) + " " + std::to_string(pivot_y+1));
         int pivot_bombs = board.at(pivot_x).at(pivot_y)-48;
         int pivot_bomb_counter = 0;
         std::vector<std::vector<int>> pivot_results;
         std::vector<std::vector<int>> pivot_surroundings = surroundingTiles(board, pivot_x, pivot_y);
-        
+
         // Separate marked bombs from bomb-candidates for pivot
         if (pivot_surroundings.size() > 0) {
-            std::cout << "Pivot surroundings results are: ";
+            std::string toPrint;
             for (auto &i : surroundingTiles(board, pivot_x, pivot_y)) {
                 if (board.at(i[0]).at(i[1]) != 'M') {
                     pivot_results.emplace_back(i);
-                    std::cout << i[0]+1 << " " << i[1]+1 << " ";
+                    toPrint += "Pivot surroundings results are: " + std::to_string(i[0]+1) + " " + std::to_string(i[1]+1) + " ";
                 } else {
-                    std::cout << "\nIncreasing pivot bomb counter due to position " << i[0]+1 << " " << i[1]+1 << std::endl;
-                    std::cout << "At this position, it was found: " << board.at(i[0]).at(i[1]) << std::endl;
+                    toPrint += "Increasing pivot bomb counter due to position " + std::to_string(i[0]+1) + " " + std::to_string(i[1]+1) + ". ";
+                    toPrint += "At this position, it was found: " + std::to_string(board.at(i[0]).at(i[1]));
                     pivot_bomb_counter++;
                 }
             }
+            printDeepDebugMessage(toPrint);
         }
-        std::cout << std::endl;
 
         int pivot_expected_bombs = pivot_bombs - pivot_bomb_counter;
-        std::cout << "Bomb count for pivot is " << pivot_bomb_counter << std::endl;
-        std::cout << pivot_expected_bombs << " bombs are expected in these surroundings for pivot" << std::endl;
+        printDeepDebugMessage("Bomb count for pivot is " + std::to_string(pivot_bomb_counter) + ". " + std::to_string(pivot_expected_bombs) + " bombs are expected in these surroundings for pivot");
 
         // Get tile's intersection:
         std::vector<std::vector<int>> results_intersection;
         std::vector<std::vector<int>> results_not_intersection;
         for (auto i = results.begin(); i != results.end(); i++) {
             if (std::find(pivot_results.begin(), pivot_results.end(), *i) != pivot_results.end()) {
-                std::cout << "Intersection found at " << i->at(0)+1 << " " << i->at(1)+1 << std::endl;
+                printDeepDebugMessage("Intersection found at " + std::to_string(i->at(0)+1) + " " + std::to_string(i->at(1)+1));
                 results_intersection.emplace_back(*i);
             } else {
                 if (board.at(i->at(0)).at(i->at(1)) != 'M') {
-                    std::cout << "Intersection NOT found at " << i->at(0)+1 << " " << i->at(1)+1 << std::endl;
+                    printDeepDebugMessage("Intersection NOT found at " + std::to_string(i->at(0)+1) + " " + std::to_string(i->at(1)+1));
                     results_not_intersection.emplace_back(*i);
                 }
             }
@@ -454,7 +571,7 @@ bool pivotBoard(std::vector<std::vector<char>>& board,
         for (std::vector<std::vector<int>>::iterator i = pivot_surroundings.begin(); i != pivot_surroundings.end(); i++) {
             if (std::find(results_intersection.begin(), results_intersection.end(), *i) == results_intersection.end()) {
                 if (board.at(i->at(0)).at(i->at(1)) != 'M') {
-                    std::cout << "After reading the pivot surroundings, adding " << i->at(0)+1 << " " << i->at(1)+1 << " to NOT INTERSECTION" << std::endl;
+                    printDeepDebugMessage("After reading the pivot surroundings, adding " + std::to_string(i->at(0)+1) + " " + std::to_string(i->at(1)+1) + " to NOT INTERSECTION");
                     results_not_intersection.emplace_back(*i);
                     pivot_not_intersection.emplace_back(*i);
                 }
@@ -463,12 +580,12 @@ bool pivotBoard(std::vector<std::vector<char>>& board,
 
         int expected_bombs = bombs - bomb_counter;
 
-        std::cout << "Expected bombs in original tile is " << expected_bombs << std::endl;
-        std::cout << "Original tile surroundings are:";
+        printDeepDebugMessage("Expected bombs in original tile are " + std::to_string(expected_bombs));
+        std::string toPrint = "Original tile surroundings are:";
         for (auto &i : surroundings) {
-            std::cout << " " << i[0]+1 << " " << i[1]+1 ; 
+            toPrint += " " + std::to_string(i[0]+1) + " " + std::to_string(i[1]+1) + ",";
         }
-        std::cout << std::endl;
+        printDeepDebugMessage(toPrint);
 
         // If the pivot expected bombs are bigger than the expected bombs in original tile, and if
         // the non-intersected tiles list from pivot aren't empty, we can mark bombs from this list.
@@ -484,23 +601,22 @@ bool pivotBoard(std::vector<std::vector<char>>& board,
        // all tiles from this list as bombs.
         if (pivot_expected_bombs > expected_bombs) {
             if (pivot_not_intersection.size() == 0) return false;
-            std::cout << "More pivot expected bombs than original expected bombs..." << std::endl;
-            std::cout << "Pivot expected: " << pivot_expected_bombs << std::endl;
-            std::cout << "Original expected: " << expected_bombs << std::endl;
+            printDeepDebugMessage("More pivot expected bombs than original expected bombs...");
+            printDeepDebugMessage("Pivot expected: " + std::to_string(pivot_expected_bombs));
+            printDeepDebugMessage("Original expected: " + std::to_string(expected_bombs));
             int difference = pivot_expected_bombs - expected_bombs;
             if (difference == (int)pivot_not_intersection.size()) {
-                std::cout << "Pivoting taking place!" << std::endl;
-                std::cout << "Since this invalidates the original tile, then marking the other pivot tiles as bombs!" << std::endl;
+                printDeepDebugMessage("Pivoting taking place!");
+                printDeepDebugMessage("Since this invalidates the original tile, then marking the other pivot tiles as bombs!");
                 for (auto &i : pivot_not_intersection) {
-                    std::cout << "Marking bomb at " << i[0]+1 << " " << i[1]+1 << std::endl;
+                    printDeepDebugMessage("Marking bomb at " + std::to_string(i[0]+1) + " " + std::to_string(i[1]+1));
                     board.at(i[0]).at(i[1]) = 'M';
                     warpAndClick(board, 46+25*(i[1]), 318+25*(i[0]), MARK_BOMB, false);
                 }
                 return true;
             }
-        } 
+        }
 
-        
         // If the amount of expected bombs from pivot and original are the same, so as the pivot surroundings
         // and the intersection between pivot and original tile, it means all bombs reside in the intersection
         // list. Therefore, the other tiles from the original tile can be freed.
@@ -515,11 +631,11 @@ bool pivotBoard(std::vector<std::vector<char>>& board,
        // (Positions 3,2 and 3,3). So, the other tiles (Positions 1,4 and 3,4) can be freed.
         if (pivot_expected_bombs == expected_bombs && std::equal(pivot_surroundings.begin(), pivot_surroundings.end(), results_intersection.begin(), results_intersection.end())) {
             if (results_not_intersection.size() == 0) return false;
-            std::cout << "Pivoting taking place!" << std::endl;
-            std::cout << "Surroundings from original tile are the same from the results intersection" << std::endl;
-            std::cout << "We can free all other tiles not in the intersection!" << std::endl;
+            printDeepDebugMessage("Pivoting taking place!");
+            printDeepDebugMessage("Surroundings from original tile are the same from the results intersection");
+            printDeepDebugMessage("We can free all other tiles not in the intersection!");
             for (auto &i : results_not_intersection) {
-                std::cout << "Revealing tile " << i[0]+1 << " " << i[1]+1 << std::endl;
+                printDeepDebugMessage("Revealing tile " + std::to_string(i[0]+1) + " " + std::to_string(i[1]+1));
                 warpAndClick(board, 46+25*(i[1]), 318+25*(i[0]), REVEAL_TILE, false);
             }
             return true;
@@ -529,11 +645,11 @@ bool pivotBoard(std::vector<std::vector<char>>& board,
         // and finally freeing the non-intersecting tiles from the pivot.
         if (pivot_expected_bombs == expected_bombs && std::equal(results.begin(), results.end(), results_intersection.begin(), results_intersection.end())) {
             if (pivot_not_intersection.size() == 0) return false;
-            std::cout << "Pivoting taking place!" << std::endl;
-            std::cout << "Surroundings from original tile are the same from the results intersection" << std::endl;
-            std::cout << "We can free all other tiles not in the intersection!" << std::endl;
+            printDeepDebugMessage("Pivoting taking place!");
+            printDeepDebugMessage("Surroundings from original tile are the same from the results intersection");
+            printDeepDebugMessage("We can free all other tiles not in the intersection!");
             for (auto &i : pivot_not_intersection) {
-                std::cout << "Revealing tile " << i[0]+1 << " " << i[1]+1 << std::endl;
+                printDeepDebugMessage("Revealing tile " + std::to_string(i[0]+1) + " " + std::to_string(i[1]+1));
                 warpAndClick(board, 46+25*(i[1]), 318+25*(i[0]), REVEAL_TILE, false);
             }
             return true;
@@ -544,24 +660,24 @@ bool pivotBoard(std::vector<std::vector<char>>& board,
         // TODO: is this really a pivot scenario?
         if (pivot_expected_bombs == expected_bombs && results_not_intersection.size() == 0) {
             if (pivot_not_intersection.size() == 0) return false;
-            std::cout << "Pivoting taking place!" << std::endl;
-            std::cout << "The results not intersection size is 0, then let's reveal the pivots not intersections" << std::endl;
+            printDeepDebugMessage("Pivoting taking place!");
+            printDeepDebugMessage("The results not intersection size is 0, then let's reveal the pivots not intersections");
             for (auto &i : pivot_not_intersection) {
-                std::cout << "Revealing tile " << i[0]+1 << " " << i[1]+1 << std::endl;
+                printDeepDebugMessage("Revealing tile " + std::to_string(i[0]+1) + " " + std::to_string(i[1]+1));
                 warpAndClick(board, 46+25*(i[1]), 318+25*(i[0]), REVEAL_TILE, false);
             }
             return true;
         }
 
-        // If the difference of expected bombs from original tile and pivot is equal to the size of the list 
+        // If the difference of expected bombs from original tile and pivot is equal to the size of the list
         // with non-intersected tiles from original one, and this list isn't empty, then all these tiles should
         // be marked as bombs.
         if (expected_bombs - pivot_expected_bombs == (int)results_not_intersection.size()) {
             if (results_not_intersection.size() == 0) return false;
-            std::cout << "Pivoting taking place!" << std::endl;
-            std::cout << "The NOT intersection size is the same amount of expected bombs difference, marking as bomb!" << std::endl;
+            printDeepDebugMessage("Pivoting taking place!");
+            printDeepDebugMessage("The NOT intersection size is the same amount of expected bombs difference, marking as bomb!");
             for (auto &i : results_not_intersection) {
-                std::cout << "Marking bomb at " << i[0]+1 << " " << i[1]+1 << std::endl;
+                printDeepDebugMessage("Marking bomb at " + std::to_string(i[0]+1) + " " + std::to_string(i[1]+1));
                 board.at(i[0]).at(i[1]) = 'M';
                 warpAndClick(board, 46+25*(i[1]), 318+25*(i[0]), MARK_BOMB, false);
             }
@@ -569,6 +685,7 @@ bool pivotBoard(std::vector<std::vector<char>>& board,
         }
     }
     // None strategy was successfull. Return false.
+    printDeepDebugMessage("No strategy was successfull...");
     return false;
 }
 
@@ -606,64 +723,65 @@ bool markBombs(std::vector<std::vector<char>>& board,
 
     // Based on the strategy, mark bombs and/or free tiles.
     if (strategy == SIMPLE) {
-        std::cout << "Found a " << bombs << " tile in position " << x+1 << " " << y+1 << std::endl;
+        printDeepDebugMessage("Found a " + std::to_string(bombs) + " tile in position " + std::to_string(x+1) + " " + std::to_string(y+1));
         // If bomb counter is the amount of bombs, then we already know the positions!
         if (bomb_counter == bombs ) {
-            std::cout << "Bomb counter is " << bombs << " in position " << x+1 << " " << y+1 << std::endl;
-            std::cout << "Revealing tile at " << x+1 << " " << y+1 << std::endl;
+            printDeepDebugMessage("Bomb counter is " + std::to_string(bombs) + " in position " + std::to_string(x+1) + " " + std::to_string(y+1));
+            printDeepDebugMessage("Revealing tile at " + std::to_string(x+1) + " " + std::to_string(y+1));
             warpAndClick(board, 46+25*(y), 318+25*(x), REVEAL_TILE);
             return true;
         } else if (bomb_counter + (int)results.size() == bombs) {
-            std::cout << "Bomb counter summed with results size is " << bombs << " in position " << x+1 << " " << y+1 << std::endl;
+            printDeepDebugMessage("Bomb counter summed with results size is " + std::to_string(bombs) + " in position " + std::to_string(x+1) + " " + std::to_string(y+1));
             for (auto i : results) {
-                std::cout << "Marking bomb at " << i[0]+1 << " " << i[1]+1 << std::endl;
+                printDeepDebugMessage("Marking bomb at " + std::to_string(i[0]+1) + " " + std::to_string(i[1]+1));
                 board.at(i[0]).at(i[1]) = 'M';
                 warpAndClick(board, 46+25*(i[1]), 318+25*(i[0]), MARK_BOMB);
             }
             return true;
-        } 
+        }
     } else if(strategy == PIVOT) {
         // Pivoting...
-        std::cout << "Valid pivot case! Trying pivoting at " << x+1 << " " << y+1 << std::endl;
+        printDeepDebugMessage("Valid pivot case! Trying pivoting at " + std::to_string(x+1) + " " + std::to_string(y+1));
         int pivot_x;
         int pivot_y;
         // There are 4 possible pivotings, left, right, up and down. However, we need to check
         // if the pivoting is possible, and valid.
         if (y > 0) {
             // left
-            std::cout << "Pivoting to the left" << std::endl;
+            printDeepDebugMessage("Pivoting to the left");
             pivot_x = x;
             pivot_y = y-1;
             if (pivotBoard(board, x, y, pivot_x, pivot_y, surroundings, results, bomb_counter)) return true;
-        } 
-        
+        }
+
         if (y < (int)board[0].size()-1) {
             // right
-            std::cout << "Pivoting to the right" << std::endl;
+            printDeepDebugMessage("Pivoting to the right");
             pivot_x = x;
             pivot_y = y+1;
             if (pivotBoard(board, x, y, pivot_x, pivot_y, surroundings, results, bomb_counter)) return true;
         }
-        
+
         if(x > 0) {
             // up
-            std::cout << "Pivoting up" << std::endl;
+            printDeepDebugMessage("Pivoting up");
             pivot_x = x-1;
             pivot_y = y;
             if (pivotBoard(board, x, y, pivot_x, pivot_y, surroundings, results, bomb_counter)) return true;
-        } 
+        }
 
         if(x < (int)board.size()-1) {
             // down
-            std::cout << "Pivoting down" << std::endl;
+            printDeepDebugMessage("Pivoting down");
             pivot_x = x+1;
             pivot_y = y;
             if (pivotBoard(board, x, y, pivot_x, pivot_y, surroundings, results, bomb_counter)) return true;
-        } else {
-            // That's a fallback in case none of the pivotings worked, but this is likely to be impossible.
-            std::cout << "Pivoting (somehow) needs enhancement..." << std::endl;
-            return false;
         }
+
+        // No pivoting strategy worked...
+        // assert(0 && "Pivoting (somehow) needs enhancement...");
+        printDeepDebugMessage("Pivoting (somehow) needs enhancement...");
+        return false;
     }
     return false;
 }
@@ -686,32 +804,30 @@ int main (int argc, const char * argv[]) {
     // Height : 1080px
     // Width : 3286px (2 monitors)
     // Firefox browser with 80% zoom.
-    DIFFICULTY difficulty;
     int board_size_x = 9;
     int board_size_y = 9;
     if (argc > 1) {
         switch (atoi(argv[1])) {
             case 0:
-                difficulty = BEGINNER;
+                printBasicMessage("Difficulty is: BEGINNER");
                 break;
             case 1:
-                difficulty = INTERMEDIATE;
+                printBasicMessage("Difficulty is: INTERMEDIATE");
                 board_size_x = 16;
                 board_size_y = 16;
                 break;
             case 2:
-                difficulty = EXPERT;
+                printBasicMessage("Difficulty is: EXPERT");
                 board_size_x = 30;
                 board_size_y = 16;
                 break;
             default:
-                difficulty = BEGINNER;
+                printBasicMessage("Difficulty is: BEGINNER");
                 break;
         }
     } else {
-        difficulty = BEGINNER;
+        printBasicMessage("Difficulty is: BEGINNER");
     }
-    std::cout << "Difficulty is: " << difficulty << std::endl;
     // Setting and initializing variables
     int Width = 0;
     int Height = 0;
@@ -721,7 +837,7 @@ int main (int argc, const char * argv[]) {
     std::vector<std::uint8_t> Pixels;
     Display *display;
     Window root;
-    
+
     // Restart game by clicking on the board's smiling face
     // Smiling face's position
     x=150+(board_size_x-9)*12.666;
@@ -729,8 +845,8 @@ int main (int argc, const char * argv[]) {
     display = XOpenDisplay(nullptr);
     root = DefaultRootWindow(display);
     Screen* s = DefaultScreenOfDisplay(display);
-    std::cout << "Screen's height is: " << s->height << std::endl;
-    std::cout << "Screen's width is: " << s->width << std::endl;
+    printBasicMessage("Screen's height is: " + std::to_string(s->height));
+    printBasicMessage("Screen's width is: " + std::to_string(s->width));
     // Move pointer to the position desired
     XWarpPointer (display, None, root, 0,0,0,0, x, y);
     // Needs to flush in order to do the movement
@@ -787,12 +903,12 @@ int main (int argc, const char * argv[]) {
                 COLOR color_verdict;
                 if (counter > 0) {
                     color_verdict = colorIdentifier(real_color);
-                    printf("NEW Position: %i %i at x:%i y:%i : %i, %i, %i, %i, VERDICT: %i\n", i+1, j+1, x, y, real_color.val[3],real_color.val[2],real_color.val[1], real_color.val[0], color_verdict);
+                    printDebugMessage("NEW Position: " + std::to_string(i+1) + " " + std::to_string(j+1) + " at x:" + std::to_string(x) + " y:" + std::to_string(y) + " : " + std::to_string(real_color.val[3]) + ", " + std::to_string(real_color.val[2]) + ", " + std::to_string(real_color.val[1]) + ", " + std::to_string(real_color.val[0]) + ", VERDICT: " + std::to_string(color_verdict));
                 } else {
                     // In case counter was never increased, it means only grey pixels were collected.
                     // Force tile as a light gray
                     color_verdict = LIGHT_GRAY;
-                    printf("NEW Position: %i %i at x:%i y:%i :FORCED LIGHT GRAY, VERDICT: %i\n", i+1, j+1, x, y, color_verdict);
+                    printDebugMessage("NEW Position: " + std::to_string(i+1) + " " + std::to_string(j+1) + " at x:" + std::to_string(x) + " y:" + std::to_string(y) + " : FORCED LIGHT GRAY, VERDICT: " + std::to_string(color_verdict));
                 }
                 real_color = {0, 0, 0, 0};
                 counter = 0;
@@ -810,7 +926,7 @@ int main (int argc, const char * argv[]) {
                         // Redo the average routine and color identification
                         Vec4b color_intermediate = pixelAverage(img, x, y, 0);
                         color_verdict = colorIdentifier(color_intermediate);
-                        printf("INTERMEDIATE Position: %i %i at x:%i y:%i : %i, %i, %i, %i, VERDICT: %i\n", i+1, j+1, x, y, color_intermediate.val[3],color_intermediate.val[2],color_intermediate.val[1], color_intermediate.val[0], color_verdict);
+                        printDebugMessage("INTERMEDIATE Position: " + std::to_string(i+1) + " " + std::to_string(j+1) + " at x:" + std::to_string(x) + " y:" + std::to_string(y) + " : " + std::to_string(color_intermediate.val[3]) + ", " + std::to_string(color_intermediate.val[2]) + ", " + std::to_string(color_intermediate.val[1]) + ", " + std::to_string(color_intermediate.val[0]) + ", VERDICT: " + std::to_string(color_verdict));
 
                         // If this a white pixel, it means this is an unclicked tile.
                         if (color_verdict == WHITE) {
@@ -845,9 +961,8 @@ int main (int argc, const char * argv[]) {
     }
 
     // Print the initial parsed board
-    std::cout << "Initial parsed board:" << std::endl;
+    printBasicMessage("This is board's first parsing...");
     printBoard(*board);
-    std::cout << std::endl;
 
     // This vector contains the tiles which were visited, and which there's nothing else to do with them.
     // So, we'll avoid visit them after they are done.
@@ -855,37 +970,39 @@ int main (int argc, const char * argv[]) {
     std::vector<std::vector<int>> pivots_visited;
     bool board_stalled = false;
     // This major for-loop works for run over the board multiple times
-    for (int k = 0; k < 100; k++) {
+    for (int k = 0; k < 500; k++) {
         int board_changes = 0;
+        printBasicMessage("Running iteration: " + std::to_string(k));
         for (int i = 0; i < board_size_y; i++) {
             for (int j = 0; j < board_size_x; j++) {
                 // No need to check tiles undiscovered (E), empty (0) or with bombs marked (M)
-                // std::cout << "Checking board with i: " << i << " and j: " << j << std::endl;
                 if (board->at(i).at(j) != 'E' && board->at(i).at(j) != '0' && board->at(i).at(j) != 'M') {
                     // Do not check tiles whieh are inside the visited-array
                     std::vector<int> aux = {i, j};
-                    if (std::find(visited.begin(), visited.end(), aux) == visited.end() || 
-                        (board_stalled && std::find(pivots_visited.begin(), pivots_visited.end(), aux) == pivots_visited.end())) {
+                    if (std::find(visited.begin(), visited.end(), aux) == visited.end() || (board_stalled && std::find(pivots_visited.begin(), pivots_visited.end(), aux) == pivots_visited.end())) {
                         // Let's try to mark some bombs, or free tiles
                         STRATEGY strategy = board_stalled ? PIVOT : SIMPLE;
                         if (markBombs(*board, i, j, strategy)) {
                             // In case the board was updated, then check if the tile is no-longer needed,
                             // and if so, add it to visited-array
                             if (strategy == SIMPLE) {
+                                printBasicMessage("Running in SIMPLE strategy");
                                 auto after_marking = surroundingTiles(*board, i, j, {'E'});
-                                std::cout << "After checking/marking position " << i+1 << " " << j+1 << " the amount of E's is: " << std::to_string(after_marking.size()) << std::endl;
+                                printBasicMessage("After checking/marking position " + std::to_string(i+1) + " " + std::to_string(j+1) + " the amount of E's is: " + std::to_string(after_marking.size()));
                                 if (after_marking.size() == 0) visited.emplace_back(aux);
                             } else if (strategy == PIVOT) {
                                 // Pivoting worked! Let's empty the list, because it can led to other
                                 // pivots to work now. Moreover, the board is no longer stalled (at least in first glance).
+                                printBasicMessage("Running in PIVOT strategy");
                                 pivots_visited = {};
-                                std::cout << "Emptying the pivots_visited vector" << std::endl;
+                                printBasicMessage("Emptying the pivots_visited vector");
                                 board_stalled = false;
                             }
                             board_changes++;
                         } else {
                             if (strategy == PIVOT) {
                                 // Pivoting failed. Add it to the visited list.
+                                printBasicMessage("Running in PIVOT strategy");
                                 pivots_visited.emplace_back(aux);
                             }
                         }
@@ -901,9 +1018,8 @@ int main (int argc, const char * argv[]) {
     }
 
     // Print the final board.
-    std::cout << "Final board!" << std::endl;
+    printBasicMessage("Final board!");
     updateBoard(*board);
-    std::cout << std::endl;
 
     // TODO: Return 1 if the board contains any 'E', or if a Bomb was caught.
     // Returning 0 must only occur when the game is finished with victory.
