@@ -5,7 +5,7 @@ RM = rm -rf
 TARGET = minesweeper_solver
 SRCS = minesweeper.cpp
 OBJS = $(SRCS:.cpp=.o)
-OPENCV_INSTALL_PATH=
+OPENCV_INSTALL_PATH=/home/felipediniz/C_proj/minesweeper/installation/OpenCV-3.4.4
 
 INC_DIR = $(OPENCV_INSTALL_PATH)/include/opencv \
 		  $(OPENCV_INSTALL_PATH)/include \

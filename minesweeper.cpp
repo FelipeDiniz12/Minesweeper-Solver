@@ -56,8 +56,8 @@ enum DIFFICULTY {
  * @param board Board to be used for printing
  */
 void printBoard(std::vector<std::vector<char>>& board) {
-    for (auto i : board) {
-        for (auto j : i) {
+    for (const auto& i : board) {
+        for (const auto& j : i) {
             std::cout << j << " ";
         }
         std::cout << std::endl;
@@ -98,14 +98,14 @@ void ImageFromDisplay(std::vector<uint8_t>& Pixels, int& Width, int& Height, int
  * @param button Which mouse button to be used
  * @param mask Which mask to be used to avoid unintended clicks/commands
  */ 
-void mouseClick(int button, int mask) {
+void mouseClick(const int button, const int mask) {
     Display *display = XOpenDisplay(NULL);
 
     XEvent event;
 
     if(display == NULL)
     {
-        fprintf(stderr, "Errore nell'apertura del Display !!!\n");
+        fprintf(stderr, "Error while opening Display !!!\n");
         exit(EXIT_FAILURE);
     }
 
@@ -148,7 +148,7 @@ void mouseClick(int button, int mask) {
  * @param color Vec4b containing RGBA information to be processed
  * @return returns a COLOR enum with the color identified by this function. If no color is found, then it returns UNKNOWN
  */ 
-COLOR colorIdentifier (Vec4b color) {
+COLOR colorIdentifier (const Vec4b& color) {
     int R = color.val[2];
     int G = color.val[1];
     int B = color.val[0];
@@ -181,7 +181,7 @@ COLOR colorIdentifier (Vec4b color) {
  * will take into account the pixels at maximum 3 pixels of distance on any direction.
  * @return returns a Vec4b vector containing the average RGBA.
  */ 
-Vec4b pixelAverage(Mat img, int x, int y, int offsetDepth = 3) {
+Vec4b pixelAverage(const Mat& img, const int& x, const int& y, const int& offsetDepth = 3) {
     Vec4b average_vec = {0, 0, 0, 0};
     float denominator = 1/(std::pow(2*offsetDepth+1, 2));
     for (int j = -offsetDepth; j < offsetDepth+1; j++) {
@@ -204,7 +204,11 @@ Vec4b pixelAverage(Mat img, int x, int y, int offsetDepth = 3) {
  * @param searchList list of chars to be used as "valid tiles". The list is "E" and "M" by default.
  * @return returns the vector containing the surrounding tiles that matches with searchList contents
  */ 
-std::vector<std::vector<int>> surroundingTiles(std::vector<std::vector<char>>& board, int x, int y, std::vector<char> searchList = {'E', 'M'}) {
+std::vector<std::vector<int>> surroundingTiles(const std::vector<std::vector<char>>& board, 
+                                               const int& x,
+                                               const int& y,
+                                               const std::vector<char>& searchList = {'E', 'M'})
+{
     std::vector<std::vector<int>> result = {};
     // Iterate through the surroundings from x,y position
     short int board_size_x = board.size();
@@ -344,7 +348,7 @@ bool updateBoard(std::vector<std::vector<char>>& board) {
  * @param delay Create a delay before and after the click for debug purposes. It's false by default
  * @return returns true at the end of the function.
  */
-bool warpAndClick(std::vector<std::vector<char>>& board, int x, int y, ACTION action, bool delay = false) {
+bool warpAndClick(std::vector<std::vector<char>>& board, const int& x, const int& y, const ACTION& action, const bool& delay = false) {
     Display* display = XOpenDisplay(nullptr);
     Window root = DefaultRootWindow(display);
     // This correction is needed to overcome issues with pixel count and warpings.
@@ -372,8 +376,8 @@ bool warpAndClick(std::vector<std::vector<char>>& board, int x, int y, ACTION ac
  * @param minor The smaller vector to check if exists inside the major one
  * @return returns false if the vector isn't inside the major one, otherwise, returns true
  */
-bool vectorInside(std::vector<std::vector<int>> major, std::vector<std::vector<int>> minor) {
-    for (auto in : minor) {
+bool vectorInside(const std::vector<std::vector<int>>& major, const std::vector<std::vector<int>>& minor) {
+    for (const auto& in : minor) {
         if (std::find(major.begin(), major.end(), in) == major.end()) return false;
     }
     return true;
@@ -391,7 +395,14 @@ bool vectorInside(std::vector<std::vector<int>> major, std::vector<std::vector<i
  * @param bomb_counter Amount of bombs in the surrounding of the original tile
  * @return returns true if a modification was done in the board, false if not
  */
-bool pivotBoard(std::vector<std::vector<char>>& board, int x, int y, int pivot_x, int pivot_y, std::vector<std::vector<int>> surroundings, std::vector<std::vector<int>> results, int bomb_counter) {
+bool pivotBoard(std::vector<std::vector<char>>& board,
+                const int& x, const int& y,
+                const int& pivot_x,
+                const int& pivot_y,
+                const std::vector<std::vector<int>>& surroundings,
+                const std::vector<std::vector<int>>& results,
+                const int& bomb_counter)
+{
     // TODO: does this function needs so many arguments?
     int bombs = board.at(x).at(y)-48;
     char pivot = board.at(pivot_x).at(pivot_y);
@@ -426,7 +437,7 @@ bool pivotBoard(std::vector<std::vector<char>>& board, int x, int y, int pivot_x
         // Get tile's intersection:
         std::vector<std::vector<int>> results_intersection;
         std::vector<std::vector<int>> results_not_intersection;
-        for (std::vector<std::vector<int>>::iterator i = results.begin(); i != results.end(); i++) {
+        for (auto i = results.begin(); i != results.end(); i++) {
             if (std::find(pivot_results.begin(), pivot_results.end(), *i) != pivot_results.end()) {
                 std::cout << "Intersection found at " << i->at(0)+1 << " " << i->at(1)+1 << std::endl;
                 results_intersection.emplace_back(*i);
@@ -569,7 +580,11 @@ bool pivotBoard(std::vector<std::vector<char>>& board, int x, int y, int pivot_x
  * @param strategy Strategy chosen for mark bombs or free tiles. The default one is SIMPLE.
  * @return returns true if a modification was done in the board, false if not
  */
-bool markBombs(std::vector<std::vector<char>>& board, int x, int y, STRATEGY strategy = SIMPLE) {
+bool markBombs(std::vector<std::vector<char>>& board,
+               const int& x,
+               const int& y,
+               const STRATEGY& strategy = SIMPLE)
+{
     // Converting the amount of bombs from char to int (Since this comes from ASCII table, just
     // subtracting it by 48)
     int bombs = board.at(x).at(y)-48;
@@ -840,7 +855,7 @@ int main (int argc, const char * argv[]) {
     std::vector<std::vector<int>> pivots_visited;
     bool board_stalled = false;
     // This major for-loop works for run over the board multiple times
-    for (int k = 0; k < 50; k++) {
+    for (int k = 0; k < 100; k++) {
         int board_changes = 0;
         for (int i = 0; i < board_size_y; i++) {
             for (int j = 0; j < board_size_x; j++) {
